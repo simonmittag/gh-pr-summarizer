@@ -11,11 +11,11 @@ func GetCommitSubjects(mergeBase string) ([]string, error) {
 	// %s is the format for commit subjects.
 	output, err := runGit("log", mergeBase+"..HEAD", "--format=%s", "--reverse")
 	if err != nil {
-		return make([]string, 0), nil
+		return []string{"commit-subject-placeholder"}, nil
 	}
 
 	if output == "" {
-		return make([]string, 0), nil
+		return []string{"commit-subject-placeholder"}, nil
 	}
 
 	return strings.Split(output, "\n"), nil

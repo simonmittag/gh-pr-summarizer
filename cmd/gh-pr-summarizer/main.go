@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 
@@ -11,19 +12,30 @@ import (
 )
 
 func main() {
+	currentBranchFlag := flag.String("current", "", "override detected current branch")
+	baseBranchFlag := flag.String("base", "", "override detected base branch")
+	flag.Parse()
+
 	cfg, err := config.LoadConfig()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
 		os.Exit(1)
 	}
 
-	ctx, err := git.GetContext()
+	gitCtx, err := git.GetContext()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 
-	mergeBase, err := ctx.GetMergeBase()
+	if *currentBranchFlag != "" {
+		gitCtx.CurrentBranch = *currentBranchFlag
+	}
+	if *baseBranchFlag != "" {
+		gitCtx.BaseBranch = *baseBranchFlag
+	}
+
+	mergeBase, err := gitCtx.GetMergeBase()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error computing merge-base: %v\n", err)
 		os.Exit(1)
@@ -38,7 +50,7 @@ func main() {
 	var ticket *tracker.Ticket
 	if cfg.Tracker == "linear" {
 		tr := tracker.NewLinearTracker(cfg.IssueUrlStem)
-		t, err := tr.FetchIssue(ctx.CurrentBranch)
+		t, err := tr.FetchIssue(gitCtx.CurrentBranch)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: could not fetch issue from linear: %v\n", err)
 		} else {

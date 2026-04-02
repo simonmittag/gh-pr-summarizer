@@ -48,7 +48,7 @@ func GetContext() (*GitContext, error) {
 func (c *GitContext) GetMergeBase() (string, error) {
 	mergeBase, err := runGit("merge-base", c.BaseBranch, c.CurrentBranch)
 	if err != nil {
-		return "merge-base-placeholder", nil
+		return "", nil
 	}
 	return mergeBase, nil
 }
