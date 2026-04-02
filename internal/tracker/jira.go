@@ -1,6 +1,7 @@
 package tracker
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -55,32 +56,38 @@ func (j *JiraTracker) fetchFromJira(issueKey string) (*Ticket, error) {
 		return nil, fmt.Errorf("ATLASSIAN_TOKEN not set")
 	}
 
-	// For Jira Cloud, the API base is usually inferred from the issue URL stem.
-	// But let's assume the user provides the full URL for the issue in the stem.
-	// We'll try to find the host from the URL stem.
 	apiHost := ""
 	if j.IssueUrlStem != "" {
-		// Example: https://mycompany.atlassian.net/browse/
 		re := regexp.MustCompile(`https?://[^/]+`)
 		apiHost = re.FindString(j.IssueUrlStem)
 	}
 
 	if apiHost == "" {
-		return nil, fmt.Errorf("could not infer Jira API host from issue_url_stem: %s", j.IssueUrlStem)
+		return nil, fmt.Errorf("could not infer Jira API host from issue_url_stem: %s. please set it to something like https://your-domain.atlassian.net/browse/", j.IssueUrlStem)
 	}
 
-	url := fmt.Sprintf("%s/rest/api/2/issue/%s", apiHost, issueKey)
+	url := fmt.Sprintf("%s/rest/api/3/issue/%s", apiHost, issueKey)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	// Assuming ATLASSIAN_TOKEN is used as a Bearer token or we might need email.
-	// However, usually ATLASSIAN_TOKEN for personal tokens can be Bearer.
-	// If it's an API Token, it should be Basic Auth with email.
-	// Since no email is provided, let's try Bearer token first.
-	// Note: ATLASSIAN_TOKEN in some contexts is actually the base64 encoded "email:token".
-	req.Header.Set("Authorization", "Bearer "+j.Token)
+	// Logic for authentication:
+	// 1. If token contains ":", assume it's "email:api_token" and encode to Basic
+	// 2. If ATLASSIAN_EMAIL is set, assume token is API token and encode to Basic
+	// 3. Otherwise, try Bearer (PAT) and fallback to Basic (already encoded)
+
+	email := os.Getenv("ATLASSIAN_EMAIL")
+	if strings.Contains(j.Token, ":") {
+		encoded := base64.StdEncoding.EncodeToString([]byte(j.Token))
+		req.Header.Set("Authorization", "Basic "+encoded)
+	} else if email != "" {
+		encoded := base64.StdEncoding.EncodeToString([]byte(email + ":" + j.Token))
+		req.Header.Set("Authorization", "Basic "+encoded)
+	} else {
+		// Fallback to original logic: try Bearer then Basic
+		req.Header.Set("Authorization", "Bearer "+j.Token)
+	}
 	req.Header.Set("Accept", "application/json")
 
 	client := &http.Client{}
@@ -90,16 +97,16 @@ func (j *JiraTracker) fetchFromJira(issueKey string) (*Ticket, error) {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusUnauthorized {
-		// Try Basic Auth if Bearer fails?
-		// Actually let's try it as the full token first.
-		// If the user provided the base64 encoded "email:token", it should be "Basic " + token.
-		req.Header.Set("Authorization", "Basic "+j.Token)
-		resp, err = client.Do(req)
-		if err != nil {
-			return nil, err
+	// If initial attempt failed (e.g. 401/403), try Basic auth with raw token as fallback
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		if !strings.Contains(j.Token, ":") && email == "" {
+			req.Header.Set("Authorization", "Basic "+j.Token)
+			resp, err = client.Do(req)
+			if err != nil {
+				return nil, err
+			}
+			defer resp.Body.Close()
 		}
-		defer resp.Body.Close()
 	}
 
 	if resp.StatusCode != http.StatusOK {

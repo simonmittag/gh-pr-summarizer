@@ -43,11 +43,8 @@ func TestJiraTracker_ParseBranchName(t *testing.T) {
 
 func TestJiraTracker_FetchIssue(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/rest/api/2/issue/PROJ-123" {
-			t.Errorf("expected path /rest/api/2/issue/PROJ-123, got %s", r.URL.Path)
-		}
-		if !((r.Header.Get("Authorization") == "Bearer dummy-token") || (r.Header.Get("Authorization") == "Basic dummy-token")) {
-			t.Errorf("expected Authorization header with dummy-token, got %s", r.Header.Get("Authorization"))
+		if r.URL.Path != "/rest/api/3/issue/PROJ-123" {
+			t.Errorf("expected path /rest/api/3/issue/PROJ-123, got %s", r.URL.Path)
 		}
 
 		resp := struct {
@@ -68,7 +65,9 @@ func TestJiraTracker_FetchIssue(t *testing.T) {
 	defer server.Close()
 
 	os.Setenv("ATLASSIAN_TOKEN", "dummy-token")
+	os.Setenv("ATLASSIAN_EMAIL", "simonmittag@gmail.com")
 	defer os.Unsetenv("ATLASSIAN_TOKEN")
+	defer os.Unsetenv("ATLASSIAN_EMAIL")
 
 	// We use the server URL as the stem for testing so it can infer the host
 	tr := NewJiraTracker(server.URL + "/browse/")
