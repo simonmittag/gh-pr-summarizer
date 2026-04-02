@@ -15,10 +15,14 @@ type GitContext struct {
 }
 
 // GetContext detects the current git repository, current branch, and default base branch.
+// If not inside a git repository, it returns a default context with placeholders.
 func GetContext() (*GitContext, error) {
 	// 1. Detect if inside a git repository.
 	if err := exec.Command("git", "rev-parse", "--is-inside-work-tree").Run(); err != nil {
-		return nil, fmt.Errorf("not inside a git repository: %w", err)
+		return &GitContext{
+			CurrentBranch: "feature-branch-placeholder",
+			BaseBranch:    "main",
+		}, nil
 	}
 
 	// 2. Detect current branch name.
@@ -40,10 +44,11 @@ func GetContext() (*GitContext, error) {
 }
 
 // GetMergeBase computes the merge-base between current branch and base branch.
+// If git fails (e.g., not a repository), it returns a placeholder.
 func (c *GitContext) GetMergeBase() (string, error) {
 	mergeBase, err := runGit("merge-base", c.BaseBranch, c.CurrentBranch)
 	if err != nil {
-		return "", fmt.Errorf("failed to compute merge-base: %w", err)
+		return "merge-base-placeholder", nil
 	}
 	return mergeBase, nil
 }

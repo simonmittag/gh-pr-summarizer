@@ -28,6 +28,9 @@ func PRBody(subjects []string, ticket *tracker.Ticket) string {
 	sb.WriteString("A summary of what this PR changes\n\n")
 
 	sb.WriteString("# How\n")
+	if len(subjects) == 0 {
+		sb.WriteString("Itemise how this PR achieves the above\n\n")
+	}
 	for _, subject := range subjects {
 		sb.WriteString(fmt.Sprintf("- [x] %s\n", subject))
 	}
