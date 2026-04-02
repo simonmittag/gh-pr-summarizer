@@ -48,7 +48,8 @@ func main() {
 	}
 
 	var ticket *tracker.Ticket
-	if cfg.Tracker == "linear" {
+	switch cfg.Tracker {
+	case "linear":
 		tr := tracker.NewLinearTracker(cfg.IssueUrlStem)
 		t, err := tr.FetchIssue(gitCtx.CurrentBranch)
 		if err != nil {
@@ -56,7 +57,7 @@ func main() {
 		} else {
 			ticket = t
 		}
-	} else if cfg.Tracker == "github" {
+	case "github":
 		owner, repo, err := gitCtx.GetRemoteOwnerRepo()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: could not detect github repo: %v\n", err)
@@ -68,6 +69,14 @@ func main() {
 			} else {
 				ticket = t
 			}
+		}
+	case "jira":
+		tr := tracker.NewJiraTracker(cfg.IssueUrlStem)
+		t, err := tr.FetchIssue(gitCtx.CurrentBranch)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: could not fetch issue from jira: %v\n", err)
+		} else {
+			ticket = t
 		}
 	}
 
