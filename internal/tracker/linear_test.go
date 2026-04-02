@@ -5,7 +5,7 @@ import (
 )
 
 func TestLinearTracker_ParseBranchName(t *testing.T) {
-	tr := NewLinearTracker("https://linear.app/fiskil/issue")
+	tr := NewLinearTracker("https://linear.app/simonmittag/issue")
 	tests := []struct {
 		branch   string
 		expected string
