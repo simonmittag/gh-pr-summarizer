@@ -1,0 +1,177 @@
+package tracker
+
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"net/http"
+	"os"
+	"regexp"
+	"strings"
+)
+
+type LinearTracker struct {
+	IssueUrlStem string
+	ApiKey       string
+}
+
+func NewLinearTracker(issueUrlStem string) *LinearTracker {
+	return &LinearTracker{
+		IssueUrlStem: issueUrlStem,
+		ApiKey:       os.Getenv("LINEAR_API_KEY"),
+	}
+}
+
+func (l *LinearTracker) FetchIssue(branchName string) (*Ticket, error) {
+	issueKey := l.parseBranchName(branchName)
+	if issueKey == "" {
+		// If parsing fails, try to infer from a valid issue (as per requirement)
+		// But first we try to fetch if we have something that looks like a key
+		return nil, fmt.Errorf("could not parse issue key from branch name: %s", branchName)
+	}
+
+	ticket, err := l.fetchFromLinear(issueKey)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Diagnostic: Failed to fetch issue %s: %v\n", issueKey, err)
+		// If fetch fails, try to "load one valid issue from linear and infer naming scheme"
+		// Requirement: "if this fails, it loads one valid issue from linear and infers the naming scheme for the branch from there."
+		inferredKey, inferErr := l.inferFromLinear(branchName)
+		if inferErr != nil {
+			return nil, fmt.Errorf("failed to fetch and failed to infer: %w", inferErr)
+		}
+		return l.fetchFromLinear(inferredKey)
+	}
+
+	return ticket, nil
+}
+
+func (l *LinearTracker) parseBranchName(branchName string) string {
+	// 1. Remove common prefixes like feat/, fix/, bug/, feature/, hotfix/, chore/
+	// and their hyphenated versions like feat-, fix-, bug-, etc.
+	// But only if they don't match the whole identifier (e.g. "feat-123" where "feat" is prefix)
+	prefixes := []string{"feat/", "fix/", "bug/", "feature/", "hotfix/", "chore/", "feat-", "fix-", "bug-", "feature-", "hotfix-", "chore-"}
+	normalizedBranch := branchName
+	for _, p := range prefixes {
+		if strings.HasPrefix(strings.ToLower(normalizedBranch), p) {
+			normalizedBranch = normalizedBranch[len(p):]
+			break // Only remove one prefix
+		}
+	}
+
+	// 2. Look for something like ABC-123 or abc-123
+	re := regexp.MustCompile(`(?i)([a-z]+-\d+)`)
+	match := re.FindString(normalizedBranch)
+	if match != "" {
+		return strings.ToUpper(match)
+	}
+	return ""
+}
+
+func (l *LinearTracker) fetchFromLinear(issueKey string) (*Ticket, error) {
+	if l.ApiKey == "" {
+		return nil, fmt.Errorf("LINEAR_API_KEY not set")
+	}
+
+	query := fmt.Sprintf(`{ "query": "{ issue(id: \"%s\") { id identifier title url } }" }`, issueKey)
+	req, err := http.NewRequest("POST", "https://api.linear.app/graphql", bytes.NewBufferString(query))
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", l.ApiKey)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("linear api returned status %d", resp.StatusCode)
+	}
+
+	var result struct {
+		Data struct {
+			Issue struct {
+				ID         string `json:"id"`
+				Identifier string `json:"identifier"`
+				Title      string `json:"title"`
+				URL        string `json:"url"`
+			} `json:"issue"`
+		} `json:"data"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, err
+	}
+
+	if result.Data.Issue.Identifier == "" {
+		return nil, fmt.Errorf("issue not found: %s", issueKey)
+	}
+
+	return &Ticket{
+		ID:    result.Data.Issue.Identifier,
+		URL:   result.Data.Issue.URL,
+		Title: result.Data.Issue.Title,
+	}, nil
+}
+
+func (l *LinearTracker) inferFromLinear(branchName string) (string, error) {
+	if l.ApiKey == "" {
+		return "", fmt.Errorf("LINEAR_API_KEY not set")
+	}
+
+	// Fetch one recent issue to see its identifier format
+	query := `{ "query": "{ issues(first: 1) { nodes { identifier } } }" }`
+	req, err := http.NewRequest("POST", "https://api.linear.app/graphql", bytes.NewBufferString(query))
+	if err != nil {
+		return "", err
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", l.ApiKey)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	var result struct {
+		Data struct {
+			Issues struct {
+				Nodes []struct {
+					Identifier string `json:"identifier"`
+				} `json:"nodes"`
+			} `json:"issues"`
+		} `json:"data"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", err
+	}
+
+	if len(result.Data.Issues.Nodes) == 0 {
+		return "", fmt.Errorf("no issues found to infer from")
+	}
+
+	sampleIdentifier := result.Data.Issues.Nodes[0].Identifier
+	// Extract prefix (e.g., "FIS" from "FIS-123")
+	parts := strings.Split(sampleIdentifier, "-")
+	if len(parts) == 0 {
+		return "", fmt.Errorf("unexpected identifier format: %s", sampleIdentifier)
+	}
+	prefix := parts[0]
+
+	// Try to find any number in the branch name and combine it with the prefix
+	re := regexp.MustCompile(`\d+`)
+	numberMatch := re.FindString(branchName)
+	if numberMatch == "" {
+		return "", fmt.Errorf("could not find issue number in branch name: %s", branchName)
+	}
+
+	return fmt.Sprintf("%s-%s", prefix, numberMatch), nil
+}
