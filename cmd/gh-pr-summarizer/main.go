@@ -56,6 +56,19 @@ func main() {
 		} else {
 			ticket = t
 		}
+	} else if cfg.Tracker == "github" {
+		owner, repo, err := gitCtx.GetRemoteOwnerRepo()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: could not detect github repo: %v\n", err)
+		} else {
+			tr := tracker.NewGitHubTracker(owner, repo)
+			t, err := tr.FetchIssue(gitCtx.CurrentBranch)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Warning: could not fetch issue from github: %v\n", err)
+			} else {
+				ticket = t
+			}
+		}
 	}
 
 	markdown := render.PRBody(subjects, ticket)

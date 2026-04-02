@@ -53,6 +53,33 @@ func (c *GitContext) GetMergeBase() (string, error) {
 	return mergeBase, nil
 }
 
+func (c *GitContext) GetRemoteOwnerRepo() (string, string, error) {
+	output, err := runGit("remote", "get-url", "origin")
+	if err != nil {
+		return "", "", err
+	}
+	// Support both SSH and HTTPS formats
+	// SSH: git@github.com:owner/repo.git
+	// HTTPS: https://github.com/owner/repo.git
+	output = strings.TrimSuffix(output, ".git")
+	parts := strings.Split(output, ":")
+	if len(parts) > 1 {
+		// SSH format or HTTPS with port
+		path := parts[len(parts)-1]
+		pathParts := strings.Split(path, "/")
+		if len(pathParts) >= 2 {
+			return pathParts[len(pathParts)-2], pathParts[len(pathParts)-1], nil
+		}
+	} else {
+		// HTTPS format
+		parts = strings.Split(output, "/")
+		if len(parts) >= 2 {
+			return parts[len(parts)-2], parts[len(parts)-1], nil
+		}
+	}
+	return "", "", fmt.Errorf("could not parse owner and repo from remote URL: %s", output)
+}
+
 func detectBaseBranch() (string, error) {
 	// Check if 'main' exists.
 	if err := exec.Command("git", "show-ref", "--verify", "--quiet", "refs/heads/main").Run(); err == nil {
