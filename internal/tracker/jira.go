@@ -30,7 +30,7 @@ func (j *JiraTracker) FetchTicket(branchName string) (*Ticket, error) {
 		return nil, fmt.Errorf("unable to parse Jira ticket key from branch name: %s", branchName)
 	}
 
-	ticket, err := j.fetchFromJira(ticketKey)
+	ticket, err := j.fetchTicketFromJira(ticketKey)
 	if err != nil {
 		log.Debug().Err(err).Str("ticketKey", ticketKey).Msg("failed to fetch ticket from jira, proceeding without ticket")
 		return nil, err
@@ -59,7 +59,7 @@ func (j *JiraTracker) parseGitBranchName(branchName string) string {
 	return ""
 }
 
-func (j *JiraTracker) fetchFromJira(ticketKey string) (*Ticket, error) {
+func (j *JiraTracker) fetchTicketFromJira(ticketKey string) (*Ticket, error) {
 	if j.Token == "" {
 		return nil, fmt.Errorf("ATLASSIAN_TOKEN not set")
 	}
