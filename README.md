@@ -18,6 +18,9 @@ A generated summary follows an opinionated three-section format:
 ### Example Output
 
 ```markdown
+# Title
+🚧 🐛 BUG/PROJ-123: Fix session timeout
+
 # Why
 Corrected user session timeout bug, see [PROJ-123](https://linear.app/my-org/issue/PROJ-123)
 
