@@ -192,7 +192,7 @@ func (r *Renderer) generateTitleSection(ticket *tracker.Ticket, branchName strin
 		}
 	}
 
-	title := fmt.Sprintf("%s%s%s/%s: %s", draftEmoji, emoji, upperType, issueKey, issueTitle)
+	title := fmt.Sprintf("%s %s %s/%s: %s", draftEmoji, emoji, upperType, issueKey, issueTitle)
 
 	var sb strings.Builder
 	sb.WriteString("# Title\n")
