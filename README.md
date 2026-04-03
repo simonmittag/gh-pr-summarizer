@@ -2,14 +2,10 @@
 
 Opinionated CLI utility to generate pull request summaries from commit history and issue trackers.
 
-> [!WARNING]
-> Active development. Expect breaking changes.
-
 ## Why it matters
 
 Good PR summaries save time. They provide context that code alone cannot. By clearly stating the 
-"Why", "What", and "How" of your PR, you'll thank yourself later when looking back at history, and your reviewers 
-will thank you now.
+"Why", "What", and "How" of your PR, reviewers can quickly understand the context.
 
 ## PR Structure
 
