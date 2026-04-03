@@ -13,11 +13,17 @@ type TrackerConfig struct {
 	TokenEnv      string `toml:"token_env"`
 }
 
+type JiraConfig struct {
+	TicketUrlStem string `toml:"ticket_url_stem"`
+	TokenEnv      string `toml:"token_env"`
+	EmailEnv      string `toml:"email_env"`
+}
+
 type Config struct {
 	Tracker string        `toml:"tracker"`
 	Linear  TrackerConfig `toml:"linear"`
 	GitHub  TrackerConfig `toml:"github"`
-	Jira    TrackerConfig `toml:"jira"`
+	Jira    JiraConfig    `toml:"jira"`
 }
 
 func EnsureGlobalConfig() error {
@@ -55,6 +61,20 @@ func mergeTrackerConfig(global, local TrackerConfig) TrackerConfig {
 	return result
 }
 
+func mergeJiraConfig(global, local JiraConfig) JiraConfig {
+	result := global
+	if local.TicketUrlStem != "" {
+		result.TicketUrlStem = local.TicketUrlStem
+	}
+	if local.TokenEnv != "" {
+		result.TokenEnv = local.TokenEnv
+	}
+	if local.EmailEnv != "" {
+		result.EmailEnv = local.EmailEnv
+	}
+	return result
+}
+
 func mergeConfig(global, local Config) Config {
 	result := global
 	if local.Tracker != "" {
@@ -62,7 +82,7 @@ func mergeConfig(global, local Config) Config {
 	}
 	result.Linear = mergeTrackerConfig(global.Linear, local.Linear)
 	result.GitHub = mergeTrackerConfig(global.GitHub, local.GitHub)
-	result.Jira = mergeTrackerConfig(global.Jira, local.Jira)
+	result.Jira = mergeJiraConfig(global.Jira, local.Jira)
 	return result
 }
 
@@ -75,6 +95,9 @@ func applyTrackerDefaults(cfg *Config) {
 	}
 	if cfg.Jira.TokenEnv == "" {
 		cfg.Jira.TokenEnv = "ATLASSIAN_TOKEN"
+	}
+	if cfg.Jira.EmailEnv == "" {
+		cfg.Jira.EmailEnv = "ATLASSIAN_EMAIL"
 	}
 }
 

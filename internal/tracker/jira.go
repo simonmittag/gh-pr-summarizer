@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"regexp"
 	"strings"
 
@@ -15,12 +14,14 @@ import (
 type JiraTracker struct {
 	TicketUrlStem string
 	Token         string
+	Email         string
 }
 
-func NewJiraTracker(ticketUrlStem, token string) *JiraTracker {
+func NewJiraTracker(ticketUrlStem, token, email string) *JiraTracker {
 	return &JiraTracker{
 		TicketUrlStem: ticketUrlStem,
 		Token:         token,
+		Email:         email,
 	}
 }
 
@@ -85,15 +86,14 @@ func (j *JiraTracker) fetchTicketFromJira(ticketKey string) (*Ticket, error) {
 	// 2. If ATLASSIAN_EMAIL is set, assume token is API token and encode to Basic
 	// 3. Otherwise, try Bearer (PAT) and fallback to Basic (already encoded)
 
-	email := os.Getenv("ATLASSIAN_EMAIL")
 	if strings.Contains(j.Token, ":") {
 		encoded := base64.StdEncoding.EncodeToString([]byte(j.Token))
 		req.Header.Set("Authorization", "Basic "+encoded)
-	} else if email != "" {
-		encoded := base64.StdEncoding.EncodeToString([]byte(email + ":" + j.Token))
+	} else if j.Email != "" {
+		encoded := base64.StdEncoding.EncodeToString([]byte(j.Email + ":" + j.Token))
 		req.Header.Set("Authorization", "Basic "+encoded)
 	} else {
-		// Fallback to original logic: try Bearer then Basic
+		// Fallback to original logic: try Bearer (PAT)
 		req.Header.Set("Authorization", "Bearer "+j.Token)
 	}
 	req.Header.Set("Accept", "application/json")
@@ -107,7 +107,7 @@ func (j *JiraTracker) fetchTicketFromJira(ticketKey string) (*Ticket, error) {
 
 	// If initial attempt failed (e.g. 401/403), try Basic auth with raw token as fallback
 	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
-		if !strings.Contains(j.Token, ":") && email == "" {
+		if !strings.Contains(j.Token, ":") && j.Email == "" {
 			req.Header.Set("Authorization", "Basic "+j.Token)
 			resp, err = client.Do(req)
 			if err != nil {

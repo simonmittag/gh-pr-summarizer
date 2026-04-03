@@ -108,7 +108,7 @@ func main() {
 			}
 		}
 	case "jira":
-		tr := tracker.NewJiraTracker(cfg.Jira.TicketUrlStem, os.Getenv(cfg.Jira.TokenEnv))
+		tr := tracker.NewJiraTracker(cfg.Jira.TicketUrlStem, os.Getenv(cfg.Jira.TokenEnv), os.Getenv(cfg.Jira.EmailEnv))
 		t, err := tr.FetchTicket(gitCtx.CurrentBranch)
 		if err != nil {
 			log.Debug().Err(err).Msg("unable to fetch ticket from jira, proceeding without ticket")

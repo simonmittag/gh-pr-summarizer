@@ -22,7 +22,7 @@ func TestMergeConfig(t *testing.T) {
 		Linear: TrackerConfig{
 			TicketUrlStem: "https://linear.app/local/issue",
 		},
-		Jira: TrackerConfig{
+		Jira: JiraConfig{
 			TokenEnv: "LOCAL_JIRA_TOKEN",
 		},
 	}
