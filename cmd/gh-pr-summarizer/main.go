@@ -17,14 +17,17 @@ import (
 
 func main() {
 	_ = godotenv.Load()
-	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	log.Logger = zerolog.New(os.Stderr).With().Timestamp().Logger()
+
 	if os.Getenv("ZEROLOG_LEVEL") != "" {
 		level, err := zerolog.ParseLevel(os.Getenv("ZEROLOG_LEVEL"))
 		if err == nil {
 			zerolog.SetGlobalLevel(level)
 		}
+	} else {
+		zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	}
-	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
 
 	currentBranchFlag := flag.String("current", "", "override detected current branch")
 	baseBranchFlag := flag.String("base", "", "override detected base branch")
