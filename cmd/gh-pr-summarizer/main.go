@@ -15,6 +15,10 @@ import (
 	"github.com/simonmittag/gh-pr-summarizer/internal/tracker"
 )
 
+var (
+	version = "dev"
+)
+
 func main() {
 	_ = godotenv.Load()
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
@@ -29,9 +33,17 @@ func main() {
 		zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	}
 
+	log.Debug().Str("version", version).Msg("starting gh-pr-summarizer")
+
 	currentBranchFlag := flag.String("current", "", "override detected current branch")
 	baseBranchFlag := flag.String("base", "", "override detected base branch")
+	versionFlag := flag.Bool("version", false, "show version and exit")
 	flag.Parse()
+
+	if *versionFlag {
+		fmt.Printf("gh-pr-summarizer version: %s\n", version)
+		os.Exit(0)
+	}
 
 	cfg, err := config.LoadConfig()
 	if err != nil {
