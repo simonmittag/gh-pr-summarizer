@@ -47,8 +47,8 @@ func main() {
 
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		log.Debug().Err(err).Msg("error loading config")
-		os.Exit(1)
+		log.Error().Err(err).Msg("failed to parse configuration file, check ./ghpr.toml or ~/.config/gh-pr-summarizer/config")
+		os.Exit(-1)
 	}
 
 	gitCtx, err := git.GetContext()
