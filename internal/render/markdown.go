@@ -104,12 +104,13 @@ Commits: %s`, ticket.Title, commitsStr)
 }
 
 func (r *Renderer) fixTitle(title string) string {
-	prompt := fmt.Sprintf(`As a grammar editor at large, fix the capitalisation and spelling and grammar of the following title. 
-Focus only on making the spelling and English of the title good. 
-Do not add any other text or explanation. You're only an editor, you have no specific knowledge of the title. 
-Do not prefix the title with anything just edit the content.'
+	prompt := fmt.Sprintf(`As a grammar editor at large, fix the capitalization, spelling, and grammar of the following title. 
+Focus strictly on making the spelling and English of the title correct. 
+Do not add any other text, explanation, or prefixes. 
+You're only an editor, you have no specific knowledge of the title. 
+Return only the edited title content itself. Never prefix the result with "Title:".
 
-Title: %s`, title)
+%s`, title)
 
 	resp, err := r.AI.CreateChatCompletion(
 		context.Background(),
