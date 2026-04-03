@@ -34,7 +34,7 @@ func TestJiraTracker_ParseBranchName(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		got := tr.parseBranchName(tt.branch)
+		got := tr.parseGitBranchName(tt.branch)
 		if got != tt.expected {
 			t.Errorf("parseBranchName(%q) = %q; want %q", tt.branch, got, tt.expected)
 		}

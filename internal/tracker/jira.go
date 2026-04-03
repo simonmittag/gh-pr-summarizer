@@ -25,7 +25,7 @@ func NewJiraTracker(ticketUrlStem string) *JiraTracker {
 }
 
 func (j *JiraTracker) FetchTicket(branchName string) (*Ticket, error) {
-	ticketKey := j.parseBranchName(branchName)
+	ticketKey := j.parseGitBranchName(branchName)
 	if ticketKey == "" {
 		return nil, fmt.Errorf("unable to parse Jira ticket key from branch name: %s", branchName)
 	}
@@ -39,7 +39,7 @@ func (j *JiraTracker) FetchTicket(branchName string) (*Ticket, error) {
 	return ticket, nil
 }
 
-func (j *JiraTracker) parseBranchName(branchName string) string {
+func (j *JiraTracker) parseGitBranchName(branchName string) string {
 	// Common prefixes to remove
 	prefixes := []string{"feat/", "fix/", "bug/", "feature/", "hotfix/", "chore/", "feat-", "fix-", "bug-", "feature-", "hotfix-", "chore-"}
 	normalizedBranch := branchName
