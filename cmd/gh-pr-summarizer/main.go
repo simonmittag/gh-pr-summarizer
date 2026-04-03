@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 
+	openai "github.com/sashabaranov/go-openai"
 	"github.com/simonmittag/gh-pr-summarizer/internal/config"
 	"github.com/simonmittag/gh-pr-summarizer/internal/git"
 	"github.com/simonmittag/gh-pr-summarizer/internal/render"
@@ -34,6 +35,13 @@ func main() {
 	if *baseBranchFlag != "" {
 		gitCtx.BaseBranch = *baseBranchFlag
 	}
+
+	apiKey := os.Getenv("OPENAI_API_KEY")
+	var aiClient *openai.Client
+	if apiKey != "" {
+		aiClient = openai.NewClient(apiKey)
+	}
+	renderer := render.NewRenderer(aiClient)
 
 	mergeBase, err := gitCtx.GetMergeBase()
 	if err != nil {
@@ -80,6 +88,6 @@ func main() {
 		}
 	}
 
-	markdown := render.PRBody(subjects, ticket)
+	markdown := renderer.PRBody(subjects, ticket)
 	fmt.Print(markdown)
 }
