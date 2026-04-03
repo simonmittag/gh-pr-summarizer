@@ -55,19 +55,23 @@ func (r *Renderer) PRBody(subjects []string, ticket *tracker.Ticket) string {
 }
 
 func (r *Renderer) generateAISummary(subjects []string, ticket *tracker.Ticket) string {
-	ticketJSON := fmt.Sprintf(`{"id": "%s", "title": "%s", "url": "%s"}`, ticket.ID, ticket.Title, ticket.URL)
 	commitsStr := strings.Join(subjects, "\n")
 
-	prompt := fmt.Sprintf(`Generate a short paragraph in Markdown format for the "# What" section of a Pull Request.
-Focus on the issue first as WHAT the PR is trying to achieve and the commits after that WHAT has actually been done.
-Weight your response based on where there is more data. If the issue is long and commit comments short, 
-focus on the issue content. If the issue is basic but the commit comments are long, use the available data from there.
+	prompt := fmt.Sprintf(`As a software engineer, write a 2-3 sentence markdown paragraph summarizing the "WHAT" 
+of this Pull Request based on the provided issue and commits. 
 
-Issue Data:
-%s
+Strictly follow these rules:
+1. Write in a factual, engineering-oriented tone.
+2. Focus on the core objective and the actual implementation.
+3. Use only the provided data; do not add filler or boilerplate.
+4. DO NOT mention the PR "aims to", "seeks to", or "is intended to".
+5. DO NOT use third-person self-references like "This Pull Request", "This PR", or "This change".
+6. DO NOT include any issue IDs (e.g., SIM-8), ticket numbers, or URLs.
+7. DO NOT include headers, titles, or introductory phrases.
+8. Start the paragraph directly with the content.
 
-Commit Subjects:
-%s`, ticketJSON, commitsStr)
+Issue: %s
+Commits: %s`, ticket.Title, commitsStr)
 
 	resp, err := r.AI.CreateChatCompletion(
 		context.Background(),
