@@ -27,3 +27,17 @@ release:
   github:
     owner: simonmittag
     name: gh-pr-summarizer
+
+brews:
+  - name: gh-pr-summarizer
+    homepage: https://github.com/simonmittag/gh-pr-summarizer
+    repository:
+      owner: simonmittag
+      name: homebrew-cli
+    commit_author:
+      name: simonmittag
+      email: simonmittag@gmail.com
+    description: "Opinionated CLI utility to generate pull request summaries"
+    license: "Apache-2.0"
+    install: |
+      bin.install "gh-pr-summarizer"
