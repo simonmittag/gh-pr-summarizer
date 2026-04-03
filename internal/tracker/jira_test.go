@@ -17,7 +17,7 @@ func TestJiraTracker_ParseBranchName(t *testing.T) {
 		{"feature/PROJ-123-some-task", "PROJ-123"},
 		{"PROJ-456", "PROJ-456"},
 		{"proj-789_another_one", "PROJ-789"},
-		{"no-issue-here", ""},
+		{"no-ticket-here", ""},
 		{"prefix-123-but-no-dash", "PREFIX-123"},
 		{"feat/abc-123", "ABC-123"},
 		{"fix/def-456", "DEF-456"},
@@ -41,7 +41,7 @@ func TestJiraTracker_ParseBranchName(t *testing.T) {
 	}
 }
 
-func TestJiraTracker_FetchIssue(t *testing.T) {
+func TestJiraTracker_FetchTicket(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/rest/api/3/issue/PROJ-123" {
 			t.Errorf("expected path /rest/api/3/issue/PROJ-123, got %s", r.URL.Path)
@@ -57,7 +57,7 @@ func TestJiraTracker_FetchIssue(t *testing.T) {
 			Fields: struct {
 				Summary string `json:"summary"`
 			}{
-				Summary: "Test Jira Issue",
+				Summary: "Test Jira Ticket",
 			},
 		}
 		json.NewEncoder(w).Encode(resp)
@@ -71,16 +71,16 @@ func TestJiraTracker_FetchIssue(t *testing.T) {
 
 	// We use the server URL as the stem for testing so it can infer the host
 	tr := NewJiraTracker(server.URL + "/browse/")
-	ticket, err := tr.FetchIssue("feature/PROJ-123")
+	ticket, err := tr.FetchTicket("feature/PROJ-123")
 	if err != nil {
-		t.Fatalf("FetchIssue failed: %v", err)
+		t.Fatalf("FetchTicket failed: %v", err)
 	}
 
 	if ticket.ID != "PROJ-123" {
 		t.Errorf("expected ID PROJ-123, got %s", ticket.ID)
 	}
-	if ticket.Title != "Test Jira Issue" {
-		t.Errorf("expected Title 'Test Jira Issue', got %s", ticket.Title)
+	if ticket.Title != "Test Jira Ticket" {
+		t.Errorf("expected Title 'Test Jira Ticket', got %s", ticket.Title)
 	}
 	if ticket.URL != server.URL+"/browse/PROJ-123" {
 		t.Errorf("expected URL %s, got %s", server.URL+"/browse/PROJ-123", ticket.URL)

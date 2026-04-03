@@ -8,27 +8,35 @@ import (
 	"os"
 	"regexp"
 	"strings"
+
+	"github.com/rs/zerolog/log"
 )
 
 type JiraTracker struct {
-	IssueUrlStem string
-	Token        string
+	TicketUrlStem string
+	Token         string
 }
 
-func NewJiraTracker(issueUrlStem string) *JiraTracker {
+func NewJiraTracker(ticketUrlStem string) *JiraTracker {
 	return &JiraTracker{
-		IssueUrlStem: issueUrlStem,
-		Token:        os.Getenv("ATLASSIAN_TOKEN"),
+		TicketUrlStem: ticketUrlStem,
+		Token:         os.Getenv("ATLASSIAN_TOKEN"),
 	}
 }
 
-func (j *JiraTracker) FetchIssue(branchName string) (*Ticket, error) {
-	issueKey := j.parseBranchName(branchName)
-	if issueKey == "" {
-		return nil, fmt.Errorf("could not parse Jira issue key from branch name: %s", branchName)
+func (j *JiraTracker) FetchTicket(branchName string) (*Ticket, error) {
+	ticketKey := j.parseBranchName(branchName)
+	if ticketKey == "" {
+		return nil, fmt.Errorf("unable to parse Jira ticket key from branch name: %s", branchName)
 	}
 
-	return j.fetchFromJira(issueKey)
+	ticket, err := j.fetchFromJira(ticketKey)
+	if err != nil {
+		log.Debug().Err(err).Str("ticketKey", ticketKey).Msg("failed to fetch ticket from jira, proceeding without ticket")
+		return nil, err
+	}
+	log.Debug().Str("ticketKey", ticketKey).Msg("successfully fetched ticket from from jira")
+	return ticket, nil
 }
 
 func (j *JiraTracker) parseBranchName(branchName string) string {
@@ -51,22 +59,22 @@ func (j *JiraTracker) parseBranchName(branchName string) string {
 	return ""
 }
 
-func (j *JiraTracker) fetchFromJira(issueKey string) (*Ticket, error) {
+func (j *JiraTracker) fetchFromJira(ticketKey string) (*Ticket, error) {
 	if j.Token == "" {
 		return nil, fmt.Errorf("ATLASSIAN_TOKEN not set")
 	}
 
 	apiHost := ""
-	if j.IssueUrlStem != "" {
+	if j.TicketUrlStem != "" {
 		re := regexp.MustCompile(`https?://[^/]+`)
-		apiHost = re.FindString(j.IssueUrlStem)
+		apiHost = re.FindString(j.TicketUrlStem)
 	}
 
 	if apiHost == "" {
-		return nil, fmt.Errorf("could not infer Jira API host from issue_url_stem: %s. please set it to something like https://your-domain.atlassian.net/browse/", j.IssueUrlStem)
+		return nil, fmt.Errorf("unable to infer Jira API host from ticket_url_stem: %s. please set it to something like https://your-domain.atlassian.net/browse/", j.TicketUrlStem)
 	}
 
-	url := fmt.Sprintf("%s/rest/api/3/issue/%s", apiHost, issueKey)
+	url := fmt.Sprintf("%s/rest/api/3/issue/%s", apiHost, ticketKey)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -124,14 +132,14 @@ func (j *JiraTracker) fetchFromJira(issueKey string) (*Ticket, error) {
 		return nil, err
 	}
 
-	issueUrl := ""
-	if j.IssueUrlStem != "" {
-		issueUrl = j.IssueUrlStem + result.Key
+	ticketUrl := ""
+	if j.TicketUrlStem != "" {
+		ticketUrl = j.TicketUrlStem + result.Key
 	}
 
 	return &Ticket{
 		ID:    result.Key,
-		URL:   issueUrl,
+		URL:   ticketUrl,
 		Title: result.Fields.Summary,
 	}, nil
 }

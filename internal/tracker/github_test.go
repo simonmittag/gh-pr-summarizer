@@ -13,11 +13,11 @@ func TestGitHubTracker_ParseBranchName(t *testing.T) {
 		{"feature/123-some-task", "123"},
 		{"123", "123"},
 		{"fix/456", "456"},
-		{"bug/789-issue", "789"},
+		{"bug/789-ticket", "789"},
 		{"feature-101", "101"},
 		{"hotfix-202", "202"},
 		{"chore/303", "303"},
-		{"no-issue-here", ""},
+		{"no-ticket-here", ""},
 		{"prefix-123-but-no-dash", "123"},
 		{"feat/abc-123", "123"},
 		{"fix/def-456", "456"},
@@ -25,7 +25,7 @@ func TestGitHubTracker_ParseBranchName(t *testing.T) {
 		{"feat-abc-123", "123"},
 		{"fix-def-456", "456"},
 		{"bug-ghi-789", "789"},
-		{"issue#123", "123"},
+		{"ticket#123", "123"},
 		{"GH-456", "456"},
 	}
 

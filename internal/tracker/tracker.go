@@ -7,5 +7,5 @@ type Ticket struct {
 }
 
 type Tracker interface {
-	FetchIssue(branchName string) (*Ticket, error)
+	FetchTicket(branchName string) (*Ticket, error)
 }

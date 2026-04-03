@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/joho/godotenv"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	openai "github.com/sashabaranov/go-openai"
 	"github.com/simonmittag/gh-pr-summarizer/internal/config"
 	"github.com/simonmittag/gh-pr-summarizer/internal/git"
@@ -13,19 +16,29 @@ import (
 )
 
 func main() {
+	_ = godotenv.Load()
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
+	if os.Getenv("ZEROLOG_LEVEL") != "" {
+		level, err := zerolog.ParseLevel(os.Getenv("ZEROLOG_LEVEL"))
+		if err == nil {
+			zerolog.SetGlobalLevel(level)
+		}
+	}
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+
 	currentBranchFlag := flag.String("current", "", "override detected current branch")
 	baseBranchFlag := flag.String("base", "", "override detected base branch")
 	flag.Parse()
 
 	cfg, err := config.LoadConfig()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error loading config: %v\n", err)
+		log.Debug().Err(err).Msg("error loading config")
 		os.Exit(1)
 	}
 
 	gitCtx, err := git.GetContext()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		log.Debug().Err(err).Msg("error getting git context")
 		os.Exit(1)
 	}
 
@@ -40,54 +53,56 @@ func main() {
 	var aiClient *openai.Client
 	if apiKey != "" {
 		aiClient = openai.NewClient(apiKey)
+		log.Debug().Err(err).Msg("proceeding with openai integration configured")
 	}
 	renderer := render.NewRenderer(aiClient)
 
 	mergeBase, err := gitCtx.GetMergeBase()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error computing merge-base: %v\n", err)
+		log.Debug().Err(err).Msg("error computing merge-base")
 		os.Exit(1)
 	}
 
 	subjects, err := git.GetCommitSubjects(mergeBase)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error collecting commit subjects: %v\n", err)
+		log.Debug().Err(err).Msg("error collecting commit subjects")
 		os.Exit(1)
 	}
 
 	var ticket *tracker.Ticket
 	switch cfg.Tracker {
 	case "linear":
-		tr := tracker.NewLinearTracker(cfg.IssueUrlStem)
-		t, err := tr.FetchIssue(gitCtx.CurrentBranch)
+		tr := tracker.NewLinearTracker(cfg.TicketUrlStem)
+		t, err := tr.FetchTicket(gitCtx.CurrentBranch)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: could not fetch issue from linear: %v\n", err)
+			log.Debug().Err(err).Msg("unable to fetch ticket from linear, proceeding without ticket")
 		} else {
 			ticket = t
 		}
 	case "github":
 		owner, repo, err := gitCtx.GetRemoteOwnerRepo()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: could not detect github repo: %v\n", err)
+			log.Debug().Err(err).Msg("unable to detect github repo, proceeding without repo access")
 		} else {
 			tr := tracker.NewGitHubTracker(owner, repo)
-			t, err := tr.FetchIssue(gitCtx.CurrentBranch)
+			t, err := tr.FetchTicket(gitCtx.CurrentBranch)
 			if err != nil {
-				fmt.Fprintf(os.Stderr, "Warning: could not fetch issue from github: %v\n", err)
+				log.Debug().Err(err).Msg("unable to fetch ticket from github, proceeding without ticket")
 			} else {
 				ticket = t
 			}
 		}
 	case "jira":
-		tr := tracker.NewJiraTracker(cfg.IssueUrlStem)
-		t, err := tr.FetchIssue(gitCtx.CurrentBranch)
+		tr := tracker.NewJiraTracker(cfg.TicketUrlStem)
+		t, err := tr.FetchTicket(gitCtx.CurrentBranch)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: could not fetch issue from jira: %v\n", err)
+			log.Debug().Err(err).Msg("unable to fetch ticket from jira, proceeding without ticket")
 		} else {
 			ticket = t
 		}
 	}
 
 	markdown := renderer.PRBody(subjects, ticket)
+	log.Debug().Msg("successfully generated PR markdown")
 	fmt.Print(markdown)
 }

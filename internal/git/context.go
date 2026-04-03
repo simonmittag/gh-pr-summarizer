@@ -77,7 +77,7 @@ func (c *GitContext) GetRemoteOwnerRepo() (string, string, error) {
 			return parts[len(parts)-2], parts[len(parts)-1], nil
 		}
 	}
-	return "", "", fmt.Errorf("could not parse owner and repo from remote URL: %s", output)
+	return "", "", fmt.Errorf("unable to parse owner and repo from remote URL: %s", output)
 }
 
 func detectBaseBranch() (string, error) {

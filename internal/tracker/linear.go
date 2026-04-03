@@ -8,44 +8,53 @@ import (
 	"os"
 	"regexp"
 	"strings"
+
+	"github.com/rs/zerolog/log"
 )
 
 type LinearTracker struct {
-	IssueUrlStem string
-	ApiKey       string
+	TicketUrlStem string
+	ApiKey        string
 }
 
-func NewLinearTracker(issueUrlStem string) *LinearTracker {
+func NewLinearTracker(ticketUrlStem string) *LinearTracker {
 	return &LinearTracker{
-		IssueUrlStem: issueUrlStem,
-		ApiKey:       os.Getenv("LINEAR_API_KEY"),
+		TicketUrlStem: ticketUrlStem,
+		ApiKey:        os.Getenv("LINEAR_API_KEY"),
 	}
 }
 
-func (l *LinearTracker) FetchIssue(branchName string) (*Ticket, error) {
-	issueKey := l.parseBranchName(branchName)
-	if issueKey == "" {
-		// If parsing fails, try to infer from a valid issue (as per requirement)
+func (l *LinearTracker) FetchTicket(branchName string) (*Ticket, error) {
+	ticketKey := l.parseGitBranchName(branchName)
+	if ticketKey == "" {
+		// If parsing fails, try to infer from a valid ticket (as per requirement)
 		// But first we try to fetch if we have something that looks like a key
-		return nil, fmt.Errorf("could not parse issue key from branch name: %s", branchName)
+		return nil, fmt.Errorf("unable to parse ticket key from branch name: %s", branchName)
 	}
 
-	ticket, err := l.fetchFromLinear(issueKey)
+	ticket, err := l.fetchTicketFromLinear(ticketKey)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Diagnostic: Failed to fetch issue %s: %v\n", issueKey, err)
-		// If fetch fails, try to "load one valid issue from linear and infer naming scheme"
-		// Requirement: "if this fails, it loads one valid issue from linear and infers the naming scheme for the branch from there."
-		inferredKey, inferErr := l.inferFromLinear(branchName)
+		log.Debug().Err(err).Str("ticketKey", ticketKey).Msg("unable to fetch ticket from linear, proceeding without")
+		// If fetch fails, try to "load one valid ticket from linear and infer naming scheme"
+		// Requirement: "if this fails, it loads one valid ticket from linear and infers the naming scheme for the branch from there."
+		inferredKey, inferErr := l.inferTicketKeyFromLinear(branchName)
 		if inferErr != nil {
-			return nil, fmt.Errorf("failed to fetch and failed to infer: %w", inferErr)
+			log.Debug().Err(inferErr).Msg("unable to infer ticket key from linear")
+			return nil, fmt.Errorf("unable to determine ticket key, proceeding without ticket")
 		}
-		return l.fetchFromLinear(inferredKey)
+		log.Debug().Str("inferredKey", inferredKey).Msg("successfully inferred ticket key from linear")
+		ticket, err = l.fetchTicketFromLinear(inferredKey)
+		if err != nil {
+			log.Debug().Err(err).Str("inferredKey", inferredKey).Msg("unable  to fetch inferred ticket from linear")
+			return nil, err
+		}
 	}
 
+	log.Debug().Str("ticketKey", ticket.ID).Msg("successfully fetched from linear")
 	return ticket, nil
 }
 
-func (l *LinearTracker) parseBranchName(branchName string) string {
+func (l *LinearTracker) parseGitBranchName(branchName string) string {
 	// 1. Remove common prefixes like feat/, fix/, bug/, feature/, hotfix/, chore/
 	// and their hyphenated versions like feat-, fix-, bug-, etc.
 	// But only if they don't match the whole identifier (e.g. "feat-123" where "feat" is prefix)
@@ -67,12 +76,12 @@ func (l *LinearTracker) parseBranchName(branchName string) string {
 	return ""
 }
 
-func (l *LinearTracker) fetchFromLinear(issueKey string) (*Ticket, error) {
+func (l *LinearTracker) fetchTicketFromLinear(ticketKey string) (*Ticket, error) {
 	if l.ApiKey == "" {
 		return nil, fmt.Errorf("LINEAR_API_KEY not set")
 	}
 
-	query := fmt.Sprintf(`{ "query": "{ issue(id: \"%s\") { id identifier title url } }" }`, issueKey)
+	query := fmt.Sprintf(`{ "query": "{ issue(id: \"%s\") { id identifier title url } }" }`, ticketKey)
 	req, err := http.NewRequest("POST", "https://api.linear.app/graphql", bytes.NewBufferString(query))
 	if err != nil {
 		return nil, err
@@ -108,7 +117,7 @@ func (l *LinearTracker) fetchFromLinear(issueKey string) (*Ticket, error) {
 	}
 
 	if result.Data.Issue.Identifier == "" {
-		return nil, fmt.Errorf("issue not found: %s", issueKey)
+		return nil, fmt.Errorf("ticket not found: %s", ticketKey)
 	}
 
 	return &Ticket{
@@ -118,12 +127,12 @@ func (l *LinearTracker) fetchFromLinear(issueKey string) (*Ticket, error) {
 	}, nil
 }
 
-func (l *LinearTracker) inferFromLinear(branchName string) (string, error) {
+func (l *LinearTracker) inferTicketKeyFromLinear(branchName string) (string, error) {
 	if l.ApiKey == "" {
 		return "", fmt.Errorf("LINEAR_API_KEY not set")
 	}
 
-	// Fetch one recent issue to see its identifier format
+	// Fetch one recent ticket to see its identifier format
 	query := `{ "query": "{ issues(first: 1) { nodes { identifier } } }" }`
 	req, err := http.NewRequest("POST", "https://api.linear.app/graphql", bytes.NewBufferString(query))
 	if err != nil {
@@ -155,7 +164,7 @@ func (l *LinearTracker) inferFromLinear(branchName string) (string, error) {
 	}
 
 	if len(result.Data.Issues.Nodes) == 0 {
-		return "", fmt.Errorf("no issues found to infer from")
+		return "", fmt.Errorf("no tickets found to infer from")
 	}
 
 	sampleIdentifier := result.Data.Issues.Nodes[0].Identifier
@@ -170,7 +179,7 @@ func (l *LinearTracker) inferFromLinear(branchName string) (string, error) {
 	re := regexp.MustCompile(`\d+`)
 	numberMatch := re.FindString(branchName)
 	if numberMatch == "" {
-		return "", fmt.Errorf("could not find issue number in branch name: %s", branchName)
+		return "", fmt.Errorf("unable to find ticket number in branch name: %s", branchName)
 	}
 
 	return fmt.Sprintf("%s-%s", prefix, numberMatch), nil

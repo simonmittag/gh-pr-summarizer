@@ -7,6 +7,8 @@ import (
 	"os"
 	"regexp"
 	"strings"
+
+	"github.com/rs/zerolog/log"
 )
 
 type GitHubTracker struct {
@@ -24,13 +26,19 @@ func NewGitHubTracker(owner, repo string) *GitHubTracker {
 	}
 }
 
-func (g *GitHubTracker) FetchIssue(branchName string) (*Ticket, error) {
-	issueNumber := g.parseBranchName(branchName)
-	if issueNumber == "" {
-		return nil, fmt.Errorf("could not parse GitHub issue number from branch name: %s", branchName)
+func (g *GitHubTracker) FetchTicket(branchName string) (*Ticket, error) {
+	ticketNumber := g.parseBranchName(branchName)
+	if ticketNumber == "" {
+		return nil, fmt.Errorf("unable to parse GitHub ticket number from branch name: %s", branchName)
 	}
 
-	return g.fetchFromGitHub(issueNumber)
+	ticket, err := g.fetchFromGitHub(ticketNumber)
+	if err != nil {
+		log.Debug().Err(err).Str("ticketNumber", ticketNumber).Msg("failed to fetch from GitHub")
+		return nil, err
+	}
+	log.Debug().Str("ticketNumber", ticketNumber).Msg("successfully fetched from GitHub")
+	return ticket, nil
 }
 
 func (g *GitHubTracker) parseBranchName(branchName string) string {
@@ -44,7 +52,7 @@ func (g *GitHubTracker) parseBranchName(branchName string) string {
 		}
 	}
 
-	// Look for a number in the branch name. GitHub issues are typically just numbers.
+	// Look for a number in the branch name. GitHub tickets are typically just numbers.
 	// We'll look for a standalone number or a number following a hash #
 	re := regexp.MustCompile(`(?:^|[^a-zA-Z0-9])(\d+)(?:$|[^a-zA-Z0-9])`)
 	match := re.FindStringSubmatch(normalizedBranch)
@@ -57,12 +65,12 @@ func (g *GitHubTracker) parseBranchName(branchName string) string {
 	return re.FindString(normalizedBranch)
 }
 
-func (g *GitHubTracker) fetchFromGitHub(issueNumber string) (*Ticket, error) {
+func (g *GitHubTracker) fetchFromGitHub(ticketNumber string) (*Ticket, error) {
 	if g.Token == "" {
 		return nil, fmt.Errorf("GITHUB_TOKEN or GH_TOKEN not set")
 	}
 
-	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/issues/%s", g.RepoOwner, g.RepoName, issueNumber)
+	url := fmt.Sprintf("https://api.github.com/repos/%s/%s/issues/%s", g.RepoOwner, g.RepoName, ticketNumber)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err

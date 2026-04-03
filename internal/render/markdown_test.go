@@ -44,7 +44,7 @@ func TestRenderer_PRBody_NoTicket(t *testing.T) {
 
 	markdown := renderer.PRBody(subjects, nil)
 
-	if !strings.Contains(markdown, "Why this PR? See, [issue-management-ticket-placeholder]") {
+	if !strings.Contains(markdown, "Why this PR? See, [ticket-management-placeholder]") {
 		t.Errorf("expected markdown to contain placeholder for why")
 	}
 	if !strings.Contains(markdown, "A summary of what this PR changes") {

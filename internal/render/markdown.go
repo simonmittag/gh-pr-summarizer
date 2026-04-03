@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/rs/zerolog/log"
 	openai "github.com/sashabaranov/go-openai"
 	"github.com/simonmittag/gh-pr-summarizer/internal/tracker"
 )
@@ -37,7 +38,7 @@ func (r *Renderer) PRBody(subjects []string, ticket *tracker.Ticket) string {
 		}
 		sb.WriteString(fmt.Sprintf("%s, see [%s](%s)\n\n", title, ticket.ID, ticket.URL))
 	} else {
-		sb.WriteString("Why this PR? See, [issue-management-ticket-placeholder](https://example.com/issue/1)\n\n")
+		sb.WriteString("Why this PR? See, [ticket-management-placeholder](https://example.com/ticket/1)\n\n")
 	}
 
 	sb.WriteString("# What\n")
@@ -64,7 +65,7 @@ func (r *Renderer) generateAISummary(subjects []string, ticket *tracker.Ticket) 
 	commitsStr := strings.Join(subjects, "\n")
 
 	prompt := fmt.Sprintf(`As a software engineer, write a 2-3 sentence markdown paragraph summarizing the "WHAT" 
-of this Pull Request based on the provided issue and commits. 
+of this Pull Request based on the provided ticket and commits. 
 
 Strictly follow these rules:
 1. Write in a factual, engineering-oriented tone.
@@ -72,11 +73,11 @@ Strictly follow these rules:
 3. Use only the provided data; do not add filler or boilerplate.
 4. DO NOT mention the PR "aims to", "seeks to", or "is intended to".
 5. DO NOT use third-person self-references like "This Pull Request", "This PR", or "This change".
-6. DO NOT include any issue IDs (e.g., SIM-8), ticket numbers, or URLs.
+6. DO NOT include any ticket IDs (e.g., SIM-8), ticket numbers, or URLs.
 7. DO NOT include headers, titles, or introductory phrases.
 8. Start the paragraph directly with the content.
 
-Issue: %s
+Ticket: %s
 Commits: %s`, ticket.Title, commitsStr)
 
 	resp, err := r.AI.CreateChatCompletion(
@@ -93,13 +94,17 @@ Commits: %s`, ticket.Title, commitsStr)
 	)
 
 	if err != nil {
+		log.Debug().Err(err).Msg("ai failed to generate summary")
 		return ""
 	}
 
 	if len(resp.Choices) > 0 {
-		return strings.TrimSpace(resp.Choices[0].Message.Content)
+		content := strings.TrimSpace(resp.Choices[0].Message.Content)
+		log.Debug().Msg("ai successfully generated summary")
+		return content
 	}
 
+	log.Debug().Msg("ai returned no choices for summary")
 	return ""
 }
 
@@ -126,12 +131,16 @@ Return only the edited title content itself. Never prefix the result with "Title
 	)
 
 	if err != nil {
+		log.Debug().Err(err).Msg("ai failed to fix title")
 		return ""
 	}
 
 	if len(resp.Choices) > 0 {
-		return strings.TrimSpace(resp.Choices[0].Message.Content)
+		content := strings.TrimSpace(resp.Choices[0].Message.Content)
+		log.Debug().Msg("ai successfully fixed title")
+		return content
 	}
 
+	log.Debug().Msg("ai returned no choices for title fix")
 	return ""
 }

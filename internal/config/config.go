@@ -8,8 +8,8 @@ import (
 )
 
 type Config struct {
-	Tracker      string `toml:"tracker"`
-	IssueUrlStem string `toml:"issue_url_stem"`
+	Tracker       string `toml:"tracker"`
+	TicketUrlStem string `toml:"ticket_url_stem"`
 }
 
 func LoadConfig() (*Config, error) {
