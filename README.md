@@ -46,7 +46,7 @@ Updated the session middleware to properly handle expiration timestamps and adde
 ### macOS (Homebrew)
 
 ```bash
-brew install simonmittag/tap/gh-pr-summarizer
+brew tap simonmittag/cli && brew install simonmittag/cli/gh-pr-summarizer
 ```
 
 ### From source (Go)
