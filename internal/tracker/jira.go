@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/rs/zerolog/log"
+	"github.com/simonmittag/gh-pr-summarizer/internal/prtype"
 )
 
 type JiraTracker struct {
@@ -41,15 +42,7 @@ func (j *JiraTracker) FetchTicket(branchName string) (*Ticket, error) {
 }
 
 func (j *JiraTracker) parseGitBranchName(branchName string) string {
-	// Common prefixes to remove
-	prefixes := []string{"feat/", "fix/", "bug/", "feature/", "hotfix/", "chore/", "feat-", "fix-", "bug-", "feature-", "hotfix-", "chore-"}
-	normalizedBranch := branchName
-	for _, p := range prefixes {
-		if strings.HasPrefix(strings.ToLower(normalizedBranch), p) {
-			normalizedBranch = normalizedBranch[len(p):]
-			break
-		}
-	}
+	normalizedBranch := prtype.StripPrefix(branchName)
 
 	// Look for something like ABC-123 or abc-123
 	re := regexp.MustCompile(`(?i)([a-z]+-\d+)`)

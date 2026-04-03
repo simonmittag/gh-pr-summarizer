@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/rs/zerolog/log"
+	"github.com/simonmittag/gh-pr-summarizer/internal/prtype"
 )
 
 type LinearTracker struct {
@@ -54,17 +55,7 @@ func (l *LinearTracker) FetchTicket(branchName string) (*Ticket, error) {
 }
 
 func (l *LinearTracker) parseGitBranchName(branchName string) string {
-	// 1. Remove common prefixes like feat/, fix/, bug/, feature/, hotfix/, chore/
-	// and their hyphenated versions like feat-, fix-, bug-, etc.
-	// But only if they don't match the whole identifier (e.g. "feat-123" where "feat" is prefix)
-	prefixes := []string{"feat/", "fix/", "bug/", "feature/", "hotfix/", "chore/", "feat-", "fix-", "bug-", "feature-", "hotfix-", "chore-"}
-	normalizedBranch := branchName
-	for _, p := range prefixes {
-		if strings.HasPrefix(strings.ToLower(normalizedBranch), p) {
-			normalizedBranch = normalizedBranch[len(p):]
-			break // Only remove one prefix
-		}
-	}
+	normalizedBranch := prtype.StripPrefix(branchName)
 
 	// 2. Look for something like ABC-123 or abc-123
 	re := regexp.MustCompile(`(?i)([a-z]+-\d+)`)

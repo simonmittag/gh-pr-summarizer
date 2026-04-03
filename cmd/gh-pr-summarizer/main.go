@@ -37,6 +37,7 @@ func main() {
 
 	currentBranchFlag := flag.String("current", "", "override detected current branch")
 	baseBranchFlag := flag.String("base", "", "override detected base branch")
+	draftFlag := flag.Bool("draft", false, "mark PR as draft (adds 🚧 emoji to title)")
 	versionFlag := flag.Bool("version", false, "show version and exit")
 	flag.Parse()
 
@@ -71,6 +72,7 @@ func main() {
 		log.Debug().Err(err).Msg("proceeding with openai integration configured")
 	}
 	renderer := render.NewRenderer(aiClient)
+	renderer.Draft = *draftFlag
 
 	mergeBase, err := gitCtx.GetMergeBase()
 	if err != nil {
@@ -117,7 +119,7 @@ func main() {
 		}
 	}
 
-	markdown := renderer.PRBody(subjects, ticket)
+	markdown := renderer.PRBody(subjects, ticket, gitCtx.CurrentBranch)
 	log.Debug().Msg("successfully generated PR markdown")
 	fmt.Print(markdown)
 }

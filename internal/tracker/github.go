@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
-	"strings"
 
 	"github.com/rs/zerolog/log"
+	"github.com/simonmittag/gh-pr-summarizer/internal/prtype"
 )
 
 type GitHubTracker struct {
@@ -40,15 +40,7 @@ func (g *GitHubTracker) FetchTicket(branchName string) (*Ticket, error) {
 }
 
 func (g *GitHubTracker) parseBranchName(branchName string) string {
-	// Common prefixes to remove
-	prefixes := []string{"feat/", "fix/", "bug/", "feature/", "hotfix/", "chore/", "feat-", "fix-", "bug-", "feature-", "hotfix-", "chore-"}
-	normalizedBranch := branchName
-	for _, p := range prefixes {
-		if strings.HasPrefix(strings.ToLower(normalizedBranch), p) {
-			normalizedBranch = normalizedBranch[len(p):]
-			break
-		}
-	}
+	normalizedBranch := prtype.StripPrefix(branchName)
 
 	// Look for a number in the branch name. GitHub tickets are typically just numbers.
 	// We'll look for a standalone number or a number following a hash #

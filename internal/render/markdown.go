@@ -7,11 +7,13 @@ import (
 
 	"github.com/rs/zerolog/log"
 	openai "github.com/sashabaranov/go-openai"
+	"github.com/simonmittag/gh-pr-summarizer/internal/prtype"
 	"github.com/simonmittag/gh-pr-summarizer/internal/tracker"
 )
 
 type Renderer struct {
-	AI *openai.Client
+	AI    *openai.Client
+	Draft bool
 }
 
 func NewRenderer(ai *openai.Client) *Renderer {
@@ -21,12 +23,16 @@ func NewRenderer(ai *openai.Client) *Renderer {
 }
 
 // PRBody generates markdown for the pull request body based on the commit subjects and optional ticket.
-func (r *Renderer) PRBody(subjects []string, ticket *tracker.Ticket) string {
+func (r *Renderer) PRBody(subjects []string, ticket *tracker.Ticket, branchName string) string {
 	if len(subjects) == 0 {
 		return "no local commits detected"
 	}
 
 	var sb strings.Builder
+
+	titleSection := r.generateTitleSection(ticket, branchName)
+	sb.WriteString(titleSection)
+	sb.WriteString("\n")
 
 	sb.WriteString("# Why\n")
 	if ticket != nil {
@@ -143,4 +149,54 @@ Return only the edited title content itself. Never prefix the result with "Title
 
 	log.Debug().Msg("ai returned no choices for title fix")
 	return ""
+}
+
+func (r *Renderer) generateTitleSection(ticket *tracker.Ticket, branchName string) string {
+	draftEmoji := ""
+	if r.Draft {
+		draftEmoji = "🚧"
+	}
+
+	typeName := prtype.DetectTypeFromBranch(branchName)
+	if typeName == "" && ticket != nil {
+		typeName = prtype.InferTypeFromTitle(ticket.Title)
+	}
+	if typeName == "" {
+		typeName = "feat"
+	}
+
+	emoji := prtype.GetEmoji(typeName)
+	upperType := strings.ToUpper(typeName)
+
+	issueKey := "NO-TICKET"
+	issueTitle := "Your title goes here"
+
+	if ticket != nil {
+		if ticket.ID != "" {
+			issueKey = ticket.ID
+		}
+		if ticket.Title != "" {
+			issueTitle = ticket.Title
+		}
+	}
+
+	// Remove potential prefix from issueKey for normalization, but requirement says:
+	// "The issue key must not be reconstructed or uppercased manually if tracker data exists."
+	// "Use the exact issue key returned by the tracker API as authoritative."
+	// However, if ticket is nil, we might want to extract it from branch.
+	if ticket == nil {
+		issueKey = prtype.StripPrefix(branchName)
+		// If branchName was just a prefix, issueKey might be empty.
+		if issueKey == "" {
+			issueKey = "NO-TICKET"
+		}
+	}
+
+	title := fmt.Sprintf("%s%s%s/%s: %s", draftEmoji, emoji, upperType, issueKey, issueTitle)
+
+	var sb strings.Builder
+	sb.WriteString("# Title\n")
+	sb.WriteString(title + "\n")
+
+	return sb.String()
 }
