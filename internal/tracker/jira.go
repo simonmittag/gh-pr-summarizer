@@ -17,10 +17,10 @@ type JiraTracker struct {
 	Token         string
 }
 
-func NewJiraTracker(ticketUrlStem string) *JiraTracker {
+func NewJiraTracker(ticketUrlStem, token string) *JiraTracker {
 	return &JiraTracker{
 		TicketUrlStem: ticketUrlStem,
-		Token:         os.Getenv("ATLASSIAN_TOKEN"),
+		Token:         token,
 	}
 }
 

@@ -9,7 +9,7 @@ import (
 )
 
 func TestJiraTracker_ParseBranchName(t *testing.T) {
-	tr := NewJiraTracker("https://mycompany.atlassian.net/browse/")
+	tr := NewJiraTracker("https://mycompany.atlassian.net/browse/", "token")
 	tests := []struct {
 		branch   string
 		expected string
@@ -70,7 +70,7 @@ func TestJiraTracker_FetchTicket(t *testing.T) {
 	defer os.Unsetenv("ATLASSIAN_EMAIL")
 
 	// We use the server URL as the stem for testing so it can infer the host
-	tr := NewJiraTracker(server.URL + "/browse/")
+	tr := NewJiraTracker(server.URL+"/browse/", "dummy-token")
 	ticket, err := tr.FetchTicket("feature/PROJ-123")
 	if err != nil {
 		t.Fatalf("FetchTicket failed: %v", err)

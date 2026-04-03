@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"regexp"
 	"strings"
 
@@ -17,10 +16,10 @@ type LinearTracker struct {
 	ApiKey        string
 }
 
-func NewLinearTracker(ticketUrlStem string) *LinearTracker {
+func NewLinearTracker(ticketUrlStem, apiKey string) *LinearTracker {
 	return &LinearTracker{
 		TicketUrlStem: ticketUrlStem,
-		ApiKey:        os.Getenv("LINEAR_API_KEY"),
+		ApiKey:        apiKey,
 	}
 }
 

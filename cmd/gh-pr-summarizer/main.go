@@ -72,7 +72,7 @@ func main() {
 	var ticket *tracker.Ticket
 	switch cfg.Tracker {
 	case "linear":
-		tr := tracker.NewLinearTracker(cfg.TicketUrlStem)
+		tr := tracker.NewLinearTracker(cfg.Linear.TicketUrlStem, os.Getenv(cfg.Linear.TokenEnv))
 		t, err := tr.FetchTicket(gitCtx.CurrentBranch)
 		if err != nil {
 			log.Debug().Err(err).Msg("unable to fetch ticket from linear, proceeding without ticket")
@@ -84,7 +84,7 @@ func main() {
 		if err != nil {
 			log.Debug().Err(err).Msg("unable to detect github repo, proceeding without repo access")
 		} else {
-			tr := tracker.NewGitHubTracker(owner, repo)
+			tr := tracker.NewGitHubTracker(owner, repo, os.Getenv(cfg.GitHub.TokenEnv))
 			t, err := tr.FetchTicket(gitCtx.CurrentBranch)
 			if err != nil {
 				log.Debug().Err(err).Msg("unable to fetch ticket from github, proceeding without ticket")
@@ -93,7 +93,7 @@ func main() {
 			}
 		}
 	case "jira":
-		tr := tracker.NewJiraTracker(cfg.TicketUrlStem)
+		tr := tracker.NewJiraTracker(cfg.Jira.TicketUrlStem, os.Getenv(cfg.Jira.TokenEnv))
 		t, err := tr.FetchTicket(gitCtx.CurrentBranch)
 		if err != nil {
 			log.Debug().Err(err).Msg("unable to fetch ticket from jira, proceeding without ticket")

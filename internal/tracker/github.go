@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"regexp"
 	"strings"
 
@@ -17,8 +16,7 @@ type GitHubTracker struct {
 	Token     string
 }
 
-func NewGitHubTracker(owner, repo string) *GitHubTracker {
-	token := os.Getenv("GITHUB_TOKEN")
+func NewGitHubTracker(owner, repo, token string) *GitHubTracker {
 	return &GitHubTracker{
 		RepoOwner: owner,
 		RepoName:  repo,

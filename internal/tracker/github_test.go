@@ -5,7 +5,7 @@ import (
 )
 
 func TestGitHubTracker_ParseBranchName(t *testing.T) {
-	tr := NewGitHubTracker("owner", "repo")
+	tr := NewGitHubTracker("owner", "repo", "token")
 	tests := []struct {
 		branch   string
 		expected string
