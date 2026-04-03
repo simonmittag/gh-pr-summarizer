@@ -29,7 +29,13 @@ func (r *Renderer) PRBody(subjects []string, ticket *tracker.Ticket) string {
 
 	sb.WriteString("# Why\n")
 	if ticket != nil {
-		sb.WriteString(fmt.Sprintf("%s, see [%s](%s)\n\n", ticket.Title, ticket.ID, ticket.URL))
+		title := ticket.Title
+		if r.AI != nil {
+			if fixedTitle := r.fixTitle(ticket.Title); fixedTitle != "" {
+				title = fixedTitle
+			}
+		}
+		sb.WriteString(fmt.Sprintf("%s, see [%s](%s)\n\n", title, ticket.ID, ticket.URL))
 	} else {
 		sb.WriteString("Why this PR? See, [issue-management-ticket-placeholder](https://example.com/issue/1)\n\n")
 	}
@@ -72,6 +78,38 @@ Strictly follow these rules:
 
 Issue: %s
 Commits: %s`, ticket.Title, commitsStr)
+
+	resp, err := r.AI.CreateChatCompletion(
+		context.Background(),
+		openai.ChatCompletionRequest{
+			Model: openai.GPT3Dot5Turbo,
+			Messages: []openai.ChatCompletionMessage{
+				{
+					Role:    openai.ChatMessageRoleUser,
+					Content: prompt,
+				},
+			},
+		},
+	)
+
+	if err != nil {
+		return ""
+	}
+
+	if len(resp.Choices) > 0 {
+		return strings.TrimSpace(resp.Choices[0].Message.Content)
+	}
+
+	return ""
+}
+
+func (r *Renderer) fixTitle(title string) string {
+	prompt := fmt.Sprintf(`As a grammar editor at large, fix the capitalisation and spelling and grammar of the following title. 
+Focus only on making the spelling and English of the title good. 
+Do not add any other text or explanation. You're only an editor, you have no specific knowledge of the title. 
+Do not prefix the title with anything just edit the content.'
+
+Title: %s`, title)
 
 	resp, err := r.AI.CreateChatCompletion(
 		context.Background(),
